@@ -1,39 +1,57 @@
 #!/system/bin/sh
-# service.sh - KYY Audio Pro v2.0 (Selene MTK)
+# service.sh - AudSel Extreme v3.2
 # Dijalankan saat boot oleh Magisk/KSU
-# Baca mode dari config dan apply ke hardware audio
+# Menunggu system audio HAL siap lalu apply profil tersimpan
 
 MODDIR="${0%/*}"
 MODULE_DIR="/data/adb/modules/kyy_audio_selene"
 MODE_FILE="$MODULE_DIR/audio_mode"
 LOG_FILE="$MODULE_DIR/last_boot.log"
 
-# Tunggu system & audio HAL benar-benar siap
-# (audioserver butuh waktu start setelah boot)
-sleep 15
+# ── Wait for audioserver to be fully ready ─────────────────
+# Better approach: poll instead of fixed sleep
+wait_audio() {
+    local tries=0
+    while [ $tries -lt 30 ]; do
+        pgrep -x audioserver > /dev/null && return 0
+        sleep 2
+        tries=$((tries + 1))
+    done
+    return 1
+}
 
-# Baca mode yang disimpan, default "normal"
+# Wait up to 60s for audio HAL
+wait_audio || {
+    echo "[$(date)] audioserver never started, aborting." > "$LOG_FILE"
+    exit 1
+}
+
+# Extra settle time after detection
+sleep 5
+
+# ── Read saved mode ────────────────────────────────────────
 if [ -f "$MODE_FILE" ]; then
-    MODE=$(cat "$MODE_FILE" | tr -d '[:space:]')
+    MODE=$(tr -d '[:space:]' < "$MODE_FILE")
 else
     MODE="normal"
     mkdir -p "$MODULE_DIR"
     echo "normal" > "$MODE_FILE"
 fi
 
-# Sourced shared tweaks
-. $MODDIR/common/audio_tweaks.sh
+# Validate mode
+case "$MODE" in
+    normal|bass|gaming|hifi|cinema) ;;
+    *) MODE="normal" ;;
+esac
 
-# Logging
-echo "[$(date)] Boot apply mode: $MODE" > "$LOG_FILE"
+# ── Source shared tweaks ───────────────────────────────────
+. "$MODDIR/common/audio_tweaks.sh"
 
-# Apply mode
+# ── Logging ────────────────────────────────────────────────
+mkdir -p "$MODULE_DIR"
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Boot: applying mode = $MODE" > "$LOG_FILE"
+
+# ── Apply ─────────────────────────────────────────────────
 apply_audio_profile "$MODE"
 
-# Restart audioserver supaya property benar-benar ke-apply oleh HAL
-killall audioserver 2>/dev/null
-sleep 1
-setprop ctl.restart audioserver 2>/dev/null
-killall android.hardware.audio.service 2>/dev/null
-
-echo "[$(date)] Mode $MODE applied successfully" >> "$LOG_FILE"
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Mode '$MODE' applied OK." >> "$LOG_FILE"

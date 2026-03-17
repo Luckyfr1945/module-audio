@@ -1,7 +1,7 @@
 id=kyy_audio_selene
-name=KYY Audio Pro (Redmi 10 Selene)
-version=v3.0
-versionCode=4
-author=Antigravity x KYY
-description=Optimasi Audio MediaTek (Redmi 10 Selene). Gunakan aplikasi KYY Audio Pro untuk mengubah mode: Normal, Bass, Gaming, Hi-Fi, Cinema.
-updateJson=
+name=AudSel Extreme (Redmi 10 Selene)
+version=v3.2
+versionCode=6
+author=Luckyfr1945 x KYY
+description=[AudSel v3.2 Extreme] Deep MTK audio overrides for Selene MT6768. 5 modes: Normal, Bass Boost, Gaming (8ms latency), Hi-Fi (24bit/192kHz), Cinema Surround. Control via AudSel APK.
+updateJson=https://raw.githubusercontent.com/Luckyfr1945/module-audio/main/update.json

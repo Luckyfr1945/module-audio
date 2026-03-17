@@ -1,6 +1,6 @@
 # KYY Audio Pro (Redmi 10 Selene)
 
-![Version](https://img.shields.io/badge/Version-v3.1_Extreme-blue.svg)
+![Version](https://img.shields.io/badge/Version-v3.2_Extreme-blue.svg)
 ![Platform](https://img.shields.io/badge/Platform-MediaTek_MT6768-orange.svg)
 ![Requirement](https://img.shields.io/badge/Requirement-Magisk%20/%20KSU-red.svg)
 
@@ -21,14 +21,33 @@ KYY Audio Pro adalah Magisk Module premium yang dirancang khusus untuk mengoptim
 5. **Cinema**: Stage surround yang luas untuk pengalaman menonton film.
 
 ## 🚀 Cara Instalasi
-1. Download file `KYY_Audio_Pro_v3.1_Extreme.zip` dari bagian [Releases](https://github.com/Luckyfr1945/module-audio/releases).
+1. Download file `AudSel_Extreme_v3.2.zip` dari bagian [Releases](https://github.com/Luckyfr1945/module-audio/releases).
 2. Instal melalui aplikasi **Magisk** atau **KernelSU**.
 3. Reboot perangkat.
-4. Instal aplikasi pendukung **KYY Audio Pro.apk** untuk mulai mengatur mode audio.
+4. Instal aplikasi pendukung **AudSel APK** untuk mulai mengatur mode audio.
 
 ## ⚠️ Peringatan
 Modul ini melakukan modifikasi pada properti sistem audio tingkat rendah. Gunakan dengan risiko sendiri.
 
+## 📋 Changelog
+### v3.2 Extreme (Latest)
+- Tulis ulang total `audio_tweaks.sh` dengan global baseline cleanup per mode
+- Tambah MTK sub-bass targeting (`bes.loudness.mode`)
+- Tambah 24-bit headphone HiFi path (`persist.vendor.audio.hp.hifi`)
+- Gaming: paksa FastMixer path & nonaktifkan deep buffer
+- Restart audio HAL lebih aman via `setprop ctl.restart` + polling
+- `service.sh`: polling audioserver bukan fixed sleep
+- Validasi mode saat boot, cegah status korup
+- Tambah `update.json` untuk OTA update via Magisk Manager
+- Deteksi IEM via extcon + BT A2DP lebih akurat
+
+### v3.1 Extreme
+- ALSA + AudioFlinger real-time stats, 30-step volume, MTK BesLoudness
+
+### v3.0
+- Integrasi APK, hapus WebUI
+
 ---
-**Author**: Antigravity x KYY  
-**Support**: Redmi 10 (Selene)
+**Author**: Luckyfr1945 x KYY  
+**Support**: Redmi 10 (Selene) · MT6768
+

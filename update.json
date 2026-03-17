@@ -1,0 +1,6 @@
+{
+  "version": "v3.2",
+  "versionCode": 6,
+  "zipUrl": "https://github.com/Luckyfr1945/module-audio/releases/latest/download/AudSel_Extreme_v3.2.zip",
+  "changelog": "v3.2 Extreme: Complete rewrite of audio engine. MTK sub-bass targeting, 24bit HiFi path, FastMixer gaming, safer HAL restart, improved device detection via extcon."
+}

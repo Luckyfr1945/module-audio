@@ -1,5 +1,6 @@
 #!/system/bin/sh
-# action.sh - APK Backend (V8 - Enhanced Detection & Tweaks)
+# action.sh - AudSel Backend v3.2
+# Handles APK requests: get/set audio mode + real-time stats
 
 MODULE_DIR="/data/adb/modules/kyy_audio_selene"
 MODE_FILE="$MODULE_DIR/audio_mode"
@@ -7,177 +8,200 @@ MODE_FILE="$MODULE_DIR/audio_mode"
 ACTION="$1"
 MODE="$2"
 
+# =========================================================
+# DEVICE DETECTION
+# =========================================================
 get_device() {
-    # 1. Get exact active routing from Audio Manager (The OS Truth)
-    local active_routing=$(/system/bin/dumpsys audio 2>/dev/null | grep -A 10 "mDeviceBroker:" | grep "mDevice=" | head -n 1 | tr '[:upper:]' '[:lower:]')
-    
-    # 2. Check for Wired Headset/IEM (High Priority)
-    if echo "$active_routing" | grep -qE "headset|headphone|wired"; then
+    # Source 1: AudioManager Device Broker — most accurate routing state
+    local routing
+    routing=$(/system/bin/dumpsys audio 2>/dev/null \
+        | grep -A 5 "mDeviceBroker:" \
+        | grep -m 1 "mDevice=" \
+        | tr '[:upper:]' '[:lower:]')
+
+    # Source 2: Wired headset via kernel switch node (most reliable for IEM)
+    local h2w=0
+    [ -f /sys/class/switch/h2w/state ] && h2w=$(cat /sys/class/switch/h2w/state 2>/dev/null)
+    [ -f /sys/class/extcon/extcon0/state ] && {
+        grep -qi "HEADPHONES=1\|HEADSET=1" /sys/class/extcon/extcon0/state 2>/dev/null && h2w=1
+    }
+
+    # Priority 1: Wired headset / IEM
+    if [ "$h2w" != "0" ] && [ -n "$h2w" ]; then
         echo "Headset / IEM"
         return
-    elif [ -f /sys/class/switch/h2w/state ]; then
-        if [ "$(cat /sys/class/switch/h2w/state 2>/dev/null)" != "0" ]; then
-            echo "Headset / IEM"
-            return
-        fi
+    fi
+    if echo "$routing" | grep -qE "headset|headphone|wired_headset"; then
+        echo "Headset / IEM"
+        return
     fi
 
-    # 3. Check for Bluetooth (Only if actually routed)
-    if echo "$active_routing" | grep -qE "bluetooth|a2dp|ble|sco"; then
+    # Priority 2: Bluetooth — ONLY if audio is truly routed via BT
+    if echo "$routing" | grep -qE "bluetooth_a2dp|a2dp_speaker|ble_headset|sco_headset"; then
         local bt_name=""
-        # Target only the truly ACTIVE bluetooth device name
-        bt_name=$(/system/bin/dumpsys bluetooth_manager 2>/dev/null | grep -A 15 "Active devices" | grep "name=" | head -n 1 | cut -d'=' -f2 | tr -d '\r\n "' | sed 's/,.*//')
-        
-        if [ -z "$bt_name" ] || [ "$bt_name" = "null" ]; then
-            # Second attempt via Audio Manager
-            bt_name=$(/system/bin/dumpsys audio 2>/dev/null | grep -i "mBluetoothHeadsetDevice" | head -n 1 | cut -d',' -f1 | cut -d':' -f2 | tr -d ' ')
+        # Most reliable source: A2DP connected device
+        bt_name=$(/system/bin/dumpsys bluetooth_manager 2>/dev/null \
+            | awk '/mBondedDevices/{found=1} found && /name=/{print; exit}' \
+            | cut -d'=' -f2 | tr -d '\r\n "' | sed 's/,.*//')
+
+        # Fallback: check audio focus output
+        if [ -z "$bt_name" ] || [ "$bt_name" = "null" ] || [ "$bt_name" = "00" ]; then
+            bt_name=$(/system/bin/dumpsys audio 2>/dev/null \
+                | grep -i "address=" \
+                | head -n 1 \
+                | cut -d'=' -f2 \
+                | tr -d ' \r\n')
         fi
 
-        if [ -n "$bt_name" ] && [ "$bt_name" != "null" ]; then 
+        if [ -n "$bt_name" ] && [ "$bt_name" != "null" ]; then
             echo "TWS: $bt_name"
-        else 
+        else
             echo "Bluetooth Audio"
         fi
         return
     fi
 
-    # 4. Check for USB Audio
-    if echo "$active_routing" | grep -q "usb"; then
+    # Priority 3: USB Audio / DAC
+    if echo "$routing" | grep -qE "usb_device|usb_headset"; then
         echo "USB Audio / DAC"
         return
     fi
 
-    # 5. Default to Speaker
+    # Default: Built-in Speaker
     echo "Built-in Speaker"
 }
 
+# =========================================================
+# SYSTEM INFO
+# =========================================================
 get_sysinfo() {
-    local model=$(getprop ro.product.model)
-    local cpu=$(getprop ro.hardware)
-    # Merapihkan nama CPU biar profesional
-    if echo "$cpu" | grep -qi 'mt'; then
-        cpu=$(echo "$cpu" | tr '[:lower:]' '[:upper:]')
-        cpu="MediaTek $cpu"
-    elif echo "$cpu" | grep -qi 'qcom'; then
-        cpu="Snapdragon"
-    fi
-    
-    [ -z "$model" ] && model="Android Device"
-    [ -z "$cpu" ] && cpu="Unknown SOC"
-    
-    echo "$cpu — $model"
+    local model cpu
+    model=$(getprop ro.product.model 2>/dev/null)
+    cpu=$(getprop ro.hardware 2>/dev/null)
+
+    # Pretty-print CPU name
+    case "$cpu" in
+        *mt*|*MT*) cpu="MediaTek $(echo "$cpu" | tr 'a-z' 'A-Z')" ;;
+        *qcom*)    cpu="Snapdragon" ;;
+        *)         cpu="${cpu:-Unknown SoC}" ;;
+    esac
+
+    echo "${cpu} — ${model:-Android Device}"
 }
 
+# =========================================================
+# REAL-TIME AUDIO STATS
+# =========================================================
 get_real_stats() {
-    local hw_rate=""
-    local hw_buffer=""
-    local hifi=$(getprop persist.vendor.audio.hifi.enable)
-    
-    # Check Hardware ALSA Nodes (Direct Kernel Data)
-    for pcm in /proc/asound/card*/pcm*p; do
-        if [ -d "$pcm/sub0" ] && grep -q "RUNNING" "$pcm/sub0/status" 2>/dev/null; then
-            local hw_params=$(cat "$pcm/sub0/hw_params" 2>/dev/null)
-            hw_rate=$(echo "$hw_params" | grep "rate" | awk '{print $2}')
-            hw_buffer=$(echo "$hw_params" | grep "buffer_size" | awk '{print $2}')
-            [ -n "$hw_rate" ] && break
-        fi
+    local hw_rate="" hw_buffer="" is_frames="false"
+    local hifi="" g=""
+
+    hifi=$(getprop persist.vendor.audio.hifi.enable 2>/dev/null)
+    g=$(getprop persist.af.resampler.quality 2>/dev/null)
+
+    # --- 1. ALSA kernel nodes (most accurate, only when playing) ---
+    for pcm_dir in /proc/asound/card*/pcm*p/sub0; do
+        [ -d "$pcm_dir" ] || continue
+        grep -q "RUNNING" "$pcm_dir/status" 2>/dev/null || continue
+        local hw_params
+        hw_params=$(cat "$pcm_dir/hw_params" 2>/dev/null)
+        hw_rate=$(echo "$hw_params" | awk '/^rate/{print $2; exit}')
+        hw_buffer=$(echo "$hw_params" | awk '/^buffer_size/{print $2; exit}')
+        [ -n "$hw_rate" ] && { is_frames="true"; break; }
     done
 
-    # Fallback to AudioFlinger Thread Parsing (HAL Truth)
+    # --- 2. AudioFlinger output thread (active or idle path) ---
     if [ -z "$hw_rate" ] || [ "$hw_rate" = "0" ]; then
-        local flinger=$(dumpsys media.audio_flinger 2>/dev/null)
-        # Target the Sample Rate from the active MIXER thread
-        hw_rate=$(echo "$flinger" | grep -A 30 "Output thread" | grep -A 5 "Thread Type:" | grep -m 1 "sample rate:" | awk '{print $NF}' | head -n 1)
-        hw_buffer=$(echo "$flinger" | grep -A 30 "Output thread" | grep -A 5 "Thread Count:" | grep -m 1 "frame count:" | awk '{print $NF}' | head -n 1)
+        local flinger
+        flinger=$(dumpsys media.audio_flinger 2>/dev/null)
+        hw_rate=$(echo "$flinger" \
+            | awk '/Output thread/{found=1} found && /sample rate:/{print $NF; exit}')
+        hw_buffer=$(echo "$flinger" \
+            | awk '/Output thread/{found=1} found && /frame count:/{print $NF; exit}')
+        [ -n "$hw_rate" ] && is_frames="true"
     fi
 
-    # Final Fallback to MTK Engine Props if audio is totally idle
-    if [ -z "$hw_rate" ]; then
-        hw_rate=$(getprop vendor.audio.current.sample.rate)
-        [ -z "$hw_rate" ] && hw_rate="48000"
+    # --- 3. MTK HAL property fallback ---
+    if [ -z "$hw_rate" ] || [ "$hw_rate" = "0" ]; then
+        hw_rate=$(getprop vendor.audio.current.sample.rate 2>/dev/null)
+        is_frames="false"
     fi
 
-    # Format Sample Rate
+    # --- 4. Last resort: ro.audio.buffer_ms ---
+    [ -z "$hw_rate" ] && hw_rate="48000"
+
+    # --- Format sample rate ---
     local srt_val="48"
-    if [ -n "$hw_rate" ] && [ "$hw_rate" -gt 0 ] 2>/dev/null; then
-        if [ "$hw_rate" -gt 1000 ]; then
-            srt_val=$(($hw_rate / 1000))
-        else
-            srt_val="$hw_rate"
-        fi
-    elif [ "$hifi" = "1" ] || [ "$hifi" = "true" ]; then
+    if [ "$hw_rate" -gt 1000 ] 2>/dev/null; then
+        srt_val=$((hw_rate / 1000))
+    elif [ "$hw_rate" -gt 0 ] 2>/dev/null; then
+        srt_val="$hw_rate"
+    fi
+    # HiFi override if idle
+    if [ "$is_frames" = "false" ] && { [ "$hifi" = "1" ] || [ "$hifi" = "true" ]; }; then
         srt_val="192"
     fi
 
-    # Format Buffer
-    local b=$(getprop ro.audio.buffer_ms) # Original 'b' variable
-    local buf_val="$b"
-    if [ -n "$hw_buffer" ]; then
-        # Convert frames to ms approximately (frames / rate * 1000)
-        # But for UI, frames might be more accurate or just use the target ms
+    # --- Format buffer ---
+    local buf_val
+    buf_val=$(getprop ro.audio.buffer_ms 2>/dev/null)
+    if [ -n "$hw_buffer" ] && [ "$is_frames" = "true" ]; then
         buf_val="$hw_buffer"
-        local is_frames=true
-    else
-        [ -z "$buf_val" ] && buf_val="-"
-        local is_frames=false
     fi
+    [ -z "$buf_val" ] && buf_val="-"
 
-    # Format Hi-Fi
+    # --- Format HiFi ---
     local hifi_status="OFF"
-    [ "$hifi" = "1" ] || [ "$hifi" = "true" ] && hifi_status="ON"
-    
-    printf '"buffer":"%s","buffer_is_frames":%s,"gain":"%s","hifi":"%s","srate":"%s"' "$buf_val" "${is_frames:-false}" "$g" "$hifi_status" "$srt_val"
-}
+    { [ "$hifi" = "1" ] || [ "$hifi" = "true" ]; } && hifi_status="ON"
 
-# Sourced shared tweaks
-. $MODULE_DIR/common/audio_tweaks.sh
-
-set_props() {
-    apply_audio_profile "$1"
+    printf '"srate":"%s","buffer":"%s","buffer_is_frames":%s,"gain":"%s","hifi":"%s"' \
+        "$srt_val" "$buf_val" "$is_frames" "${g:-7}" "$hifi_status"
 }
 
 # =========================================================
-# ROUTER & OUTPUT
+# SOURCE TWEAKS
+# =========================================================
+# shellcheck source=common/audio_tweaks.sh
+. "$MODULE_DIR/common/audio_tweaks.sh"
+
+# =========================================================
+# ROUTER
 # =========================================================
 case "$ACTION" in
+
     get_mode)
-        if [ -f "$MODE_FILE" ]; then
-            CURRENT=$(cat "$MODE_FILE" | tr -d '[:space:]')
-        else
-            CURRENT="normal"
-        fi
-        
-        STATS=$(get_real_stats)
+        CURRENT="normal"
+        [ -f "$MODE_FILE" ] && CURRENT=$(tr -d '[:space:]' < "$MODE_FILE")
         DEV=$(get_device | tr -d '\r\n"')
         SYS=$(get_sysinfo | tr -d '\r\n"')
-        
-        printf '{"success":true,"mode":"%s","device":"%s","sysinfo":"%s",%s}\n' "$CURRENT" "$DEV" "$SYS" "$STATS"
+        STATS=$(get_real_stats)
+        printf '{"success":true,"mode":"%s","device":"%s","sysinfo":"%s",%s}\n' \
+            "$CURRENT" "$DEV" "$SYS" "$STATS"
         ;;
-        
+
     set_mode)
-        if echo "normal bass gaming hifi cinema" | grep -qw "$MODE"; then
-            mkdir -p "$MODULE_DIR"
-            echo "$MODE" > "$MODE_FILE"
-            
-            set_props "$MODE" >/dev/null 2>&1
-            STATS=$(get_real_stats)
-            DEV=$(get_device | tr -d '\r\n"')
-            SYS=$(get_sysinfo | tr -d '\r\n"')
-            
-            printf '{"success":true,"mode":"%s","device":"%s","sysinfo":"%s",%s}\n' "$MODE" "$DEV" "$SYS" "$STATS"
-            
-            # Restart system sound lebih aggresif
-            (
-                sleep 0.2
-                killall audioserver >/dev/null 2>&1
-                setprop ctl.restart audioserver >/dev/null 2>&1
-                killall android.hardware.audio.service >/dev/null 2>&1
-            ) >/dev/null 2>&1 &
-        else
-            printf '{"success":false,"error":"Mode invalid"}\n'
-        fi
+        case "$MODE" in
+            normal|bass|gaming|hifi|cinema) ;;
+            *)
+                printf '{"success":false,"error":"Unknown mode: %s"}\n' "$MODE"
+                exit 1
+                ;;
+        esac
+
+        mkdir -p "$MODULE_DIR"
+        echo "$MODE" > "$MODE_FILE"
+
+        # Apply synchronously first (APK waits for response)
+        apply_audio_profile "$MODE" >/dev/null 2>&1
+
+        DEV=$(get_device | tr -d '\r\n"')
+        SYS=$(get_sysinfo | tr -d '\r\n"')
+        STATS=$(get_real_stats)
+        printf '{"success":true,"mode":"%s","device":"%s","sysinfo":"%s",%s}\n' \
+            "$MODE" "$DEV" "$SYS" "$STATS"
         ;;
+
     *)
-        printf '{"success":false,"error":"Action kosong"}\n'
+        printf '{"success":false,"error":"Invalid action"}\n'
         ;;
 esac
