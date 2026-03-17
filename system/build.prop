@@ -1,0 +1,26 @@
+# MediaTek Audio Specific Tweaks (Selene)
+
+# Mengaktifkan Hi-Fi Audio via MTK HAL
+persist.vendor.audio.hifi.enable=1
+ro.vendor.audio.hifi=true
+
+# Mengurangi distorsi dari pemrosesan MediaTek AAL (Adaptive Ambient Light/Audio)
+# Ini sering bikin volume naik turun gak jelas (pumping effect)
+persist.vendor.audio.aal.enabled=0
+
+# Mengoptimalkan buffer untuk chip Helio G88
+# Biar suara gak pecah saat CPU lagi load tinggi (gaming)
+ro.audio.buffer_ms=20
+persist.af.resampler.quality=4
+af.resampler.quality=4
+
+# Floating point audio (Lebih jernih daripada integer processing)
+ro.audio.pcm.dynamic.processing=true
+
+# Force Dual Speaker Stereo Balance
+# Redmi 10 punya stereo speaker, kita pastikan outputnya seimbang
+persist.vendor.audio.double.mic.config=0
+persist.audio.dirac.speaker=1
+
+# Disable Safe Volume Warning (Agar bisa keras tanpa pop-up mengganggu)
+audio.safevolume.force=false

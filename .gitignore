@@ -1,0 +1,5 @@
+# Magisk Module
+*.zip
+webroot/*.bak
+.DS_Store
+/tmp/
