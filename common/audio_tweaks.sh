@@ -56,20 +56,15 @@ apply_audio_profile() {
 
         bass)
             # ── EXTREME BASS ─────────────────────────────
-            # Aggressive low-frequency extension via BesLoudness
             resetprop ro.audio.buffer_ms 24
-            resetprop vendor.audio.music.volume.gain 22  # +22 headroom for punch
-            resetprop vendor.audio.sys.volume.gain 18
+            resetprop vendor.audio.music.volume.gain 25
+            resetprop vendor.audio.sys.volume.gain 20
             resetprop persist.vendor.audio.besloudness.enabled 1
             resetprop persist.vendor.audio.besloudness.type 1
             resetprop persist.vendor.audio.musicplus.enabled 1
             resetprop persist.audio.dirac.speaker 1
-            resetprop ro.vendor.audio.soundfx.type dirac
-            resetprop vendor.audio.speaker.prot.enable true
-            resetprop persist.vendor.audio.surround.enable 0
-            resetprop persist.vendor.audio.gaming.mode 0
-            # Sub-bass freq target (MTK BES)
             resetprop persist.vendor.audio.bes.loudness.mode 2
+            resetprop persist.vendor.audio.bes.loudness.type 1
             ;;
 
         gaming)
@@ -95,26 +90,17 @@ apply_audio_profile() {
 
         hifi)
             # ── HI-RES / AUDIOPHILE ───────────────────────
-            # 24-bit/192kHz headphone focus, maximum fidelity
-            resetprop ro.audio.buffer_ms 40             # Larger buffer = less jitter
+            resetprop ro.audio.buffer_ms 40
             resetprop persist.af.resampler.quality 7
             resetprop vendor.af.resampler.quality 7
-            resetprop vendor.audio.music.volume.gain 15
-            resetprop vendor.audio.sys.volume.gain 14
-            resetprop persist.vendor.audio.hifi.enable 1 # MTK Wired HiFi PATH ON
+            resetprop vendor.audio.music.volume.gain 16
+            resetprop persist.vendor.audio.hifi.enable 1
             resetprop ro.vendor.audio.hifi true
-            resetprop persist.vendor.audio.srate.48000 false     # Allow >48kHz srate
-            resetprop audio.offload.pcm.24bit.enable true
-            resetprop audio.offload.pcm.16bit.enable true
-            resetprop persist.vendor.audio.pcm.192k.supported true
-            resetprop ro.mtk_audio_alac_support 1       # ALAC lossless decode
-            resetprop ro.audio.pcm.dynamic.processing true
-            resetprop persist.audio.dirac.speaker 0     # Bypass Dirac for pure signal
-            resetprop persist.vendor.audio.besloudness.enabled 0
-            resetprop persist.vendor.audio.gaming.mode 0
-            resetprop audio.deep_buffer.media 1
-            # 24bit headphone path
             resetprop persist.vendor.audio.hp.hifi 1
+            resetprop persist.vendor.audio.hp.type 1
+            resetprop audio.offload.pcm.24bit.enable true
+            resetprop persist.vendor.audio.srate.48000 false
+            resetprop persist.vendor.audio.pcm.192k.supported true
             ;;
 
         cinema)
