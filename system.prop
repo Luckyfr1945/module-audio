@@ -1,28 +1,20 @@
-# AudSel Extreme v3.2 - System Properties
-# Targeted for Redmi 10 (Selene) MT6768
+persist.vendor.audio.hifi.enable=0
+ro.vendor.audio.hifi=false
+persist.vendor.audio.hp.hifi=0
+persist.vendor.audio.pcm.192k.supported=false
+audio.offload.pcm.24bit.enable=false
 
-# 1. Direct Hardware Mixer & HiFi Path
-persist.vendor.audio.hifi.enable=1
-ro.vendor.audio.hifi=true
-persist.vendor.audio.hp.hifi=1
-persist.vendor.audio.pcm.192k.supported=true
-audio.offload.pcm.24bit.enable=true
-
-# 2. MTK Audio Engine Tuning
-persist.vendor.audio.besloudness.enabled=1
-persist.vendor.audio.musicplus.enabled=1
+persist.vendor.audio.besloudness.enabled=0
+persist.vendor.audio.musicplus.enabled=0
 persist.vendor.audio.aal.enabled=0
 persist.vendor.audio.clear.motion=1
 
-# 3. Latency & Resampling
-persist.af.resampler.quality=7
-vendor.af.resampler.quality=7
+persist.af.resampler.quality=4
+vendor.af.resampler.quality=4
 ro.audio.buffer_ms=20
 
-# 4. Volume Steps (Force 30 steps)
 ro.config.media_vol_steps=30
 ro.config.vc_call_vol_steps=15
 
-# 5. Disable System Constraints
 audio.safevolume.force=false
 persist.audio.hal.priority=1

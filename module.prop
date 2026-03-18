@@ -1,7 +1,7 @@
 id=kyy_audio_selene
-name=AudSel Extreme (Redmi 10 Selene)
-version=v3.2
-versionCode=6
+name=AudSel Extreme - Optimized (Redmi 10 Selene)
+version=v3.3-EXTREME
+versionCode=7
 author=Luckyfr1945 x KYY
-description=[AudSel v3.2 Extreme] Deep MTK audio overrides for Selene MT6768. 5 modes: Normal, Bass Boost, Gaming (8ms latency), Hi-Fi (24bit/192kHz), Cinema Surround. Control via AudSel APK.
+description=[v3.3 EXTREME] Optimized for battery & thermal. Removed resampler overhead, placebo tweaks, and high-frequency DSP heat sources. 5 modes: Normal, Bass, Gaming (2ms resampler), Hi-Fi (96k/24bit balanced), Cinema.
 updateJson=https://raw.githubusercontent.com/Luckyfr1945/module-audio/main/update.json
