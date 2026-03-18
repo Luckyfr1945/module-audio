@@ -1,7 +1,7 @@
 id=kyy_audio_selene
-name=AudSel Extreme - Optimized (Redmi 10 Selene)
-version=v3.3-EXTREME
-versionCode=7
+name=AudSel Extreme - Web Dashboard (Redmi 10 Selene)
+version=v3.3-WEBUI
+versionCode=8
 author=Luckyfr1945 x KYY
-description=[v3.3 EXTREME] Optimized for battery & thermal. Removed resampler overhead, placebo tweaks, and high-frequency DSP heat sources. 5 modes: Normal, Bass, Gaming (2ms resampler), Hi-Fi (96k/24bit balanced), Cinema.
+description=[v3.3 EXTREME] Optimized Audio with Pure WebUI Dashboard. 5 modes: Normal, Bass, Gaming (2ms), Hi-Fi, Cinema. No APK needed. Open via Magisk/KSU Manager.
 updateJson=https://raw.githubusercontent.com/Luckyfr1945/module-audio/main/update.json

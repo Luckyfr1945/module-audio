@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>AudSel Extreme Control</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">
+                <h1>AudSel<span>EXTREME</span></h1>
+                <p id="device-info">Detecting device...</p>
+            </div>
+            <div id="hifi-status" class="status-badge">HiFi: OFF</div>
+        </header>
+
+        <section class="stats-grid">
+            <div class="stat-card">
+                <span class="label">Sample Rate</span>
+                <span class="value" id="val-srate">--</span>
+                <span class="unit">kHz</span>
+            </div>
+            <div class="stat-card">
+                <span class="label">Buffer Size</span>
+                <span class="value" id="val-buffer">--</span>
+                <span class="unit">ms/frames</span>
+            </div>
+        </section>
+
+        <section class="mode-selector">
+            <h3>Select Audio Profile</h3>
+            <div class="grid-modes">
+                <div class="mode-card" data-mode="normal" onclick="setMode('normal')">
+                    <div class="icon">🍃</div>
+                    <div class="mode-info">
+                        <h4>Normal</h4>
+                        <p>Balanced & Efficient</p>
+                    </div>
+                </div>
+                <div class="mode-card" data-mode="bass" onclick="setMode('bass')">
+                    <div class="icon">🔊</div>
+                    <div class="mode-info">
+                        <h4>Bass Boost</h4>
+                        <p>Deep Sub-LFE</p>
+                    </div>
+                </div>
+                <div class="mode-card" data-mode="gaming" onclick="setMode('gaming')">
+                    <div class="icon">🎮</div>
+                    <div class="mode-info">
+                        <h4>Gaming</h4>
+                        <p>Ultra-Low Latency</p>
+                    </div>
+                </div>
+                <div class="mode-card" data-mode="hifi" onclick="setMode('hifi')">
+                    <div class="icon">💎</div>
+                    <div class="mode-info">
+                        <h4>Hi-Fi</h4>
+                        <p>Audiophile Grade</p>
+                    </div>
+                </div>
+                <div class="mode-card" data-mode="cinema" onclick="setMode('cinema')">
+                    <div class="icon">🎬</div>
+                    <div class="mode-info">
+                        <h4>Cinema</h4>
+                        <p>Virtual Surround</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <footer>
+            <button class="refresh-btn" onclick="fetchData()">Refresh Stats</button>
+            <p>AudSel Extreme v3.3 by Luckyfr1945 x KYY</p>
+        </footer>
+    </div>
+
+    <!-- Script for Magisk/KSU Communication -->
+    <script>
+        async function run(cmd) {
+            // Support for KernelSU / Kitsune / Alpha bridge
+            if (window.ksu) { return await ksu.exec(cmd); }
+            if (window.magisk) { return await magisk.exec(cmd); }
+            // Mock for browser testing
+            console.log("Exec: " + cmd);
+            return { success: false, error: "Bridge not found" };
+        }
+
+        const ACTION_PATH = "/data/adb/modules/kyy_audio_selene/webroot/action.sh";
+
+        async function fetchData() {
+            try {
+                const res = await run(`sh ${ACTION_PATH} get_mode`);
+                const data = JSON.parse(res.stdout || res.msg || res);
+                if (data.success) {
+                    updateUI(data);
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        async function setMode(mode) {
+            const cards = document.querySelectorAll('.mode-card');
+            cards.forEach(c => c.classList.remove('loading'));
+            const target = document.querySelector(`[data-mode="${mode}"]`);
+            target.classList.add('loading');
+
+            try {
+                const res = await run(`sh ${ACTION_PATH} set_mode ${mode}`);
+                const data = JSON.parse(res.stdout || res.msg || res);
+                if (data.success) {
+                    updateUI(data);
+                }
+            } catch (e) { console.error(e); }
+            finally { target.classList.remove('loading'); }
+        }
+
+        function updateUI(data) {
+            document.getElementById('device-info').innerText = data.sysinfo + " | " + data.device;
+            document.getElementById('val-srate').innerText = data.srate;
+            document.getElementById('val-buffer').innerText = data.buffer;
+            
+            const hifiBadge = document.getElementById('hifi-status');
+            if (data.hifi === "ON") {
+                hifiBadge.innerText = "HiFi: ON";
+                hifiBadge.classList.add('active');
+            } else {
+                hifiBadge.innerText = "HiFi: OFF";
+                hifiBadge.classList.remove('active');
+            }
+
+            const cards = document.querySelectorAll('.mode-card');
+            cards.forEach(c => {
+                c.classList.remove('active');
+                if (c.getAttribute('data-mode') === data.mode) {
+                    c.classList.add('active');
+                }
+            });
+        }
+
+        // Auto-refresh stats every 5s
+        setInterval(fetchData, 5000);
+        window.onload = fetchData;
+    </script>
+</body>
+</html>
